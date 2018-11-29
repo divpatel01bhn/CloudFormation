@@ -1,0 +1,281 @@
+{
+
+"AWSTemplateFormatVersion": "2010-09-09",
+"Description" : "Create VPC,Subnet,IGW,attachIGW,RT,add route,EC2 ",
+
+"Parameters" : {
+  "InstanceType" : {
+    "Description" : "WebServer EC2 instance type",
+    "Type" : "String",
+    "Default" : "t2.micro",
+    "AllowedValues" : ["t2.micro","t2.small","t2.nano"],
+    "ConstraintDescription" : "must be a valid EC2 instance type."
+                  },
+  "KeyName": {
+    "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+    "Type" : "AWS::EC2::KeyPair::KeyName",
+    "ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+                  }
+                },
+
+"Mappings" : {
+  "RegionMap" : {
+    "us-east-1" : { "AMI" : "ami-0922553b7b0369273"},
+    "us-east-2" : { "AMI" : "ami-0b59bfac6be064b78"}
+                }
+              },
+
+
+"Resources" : {
+
+  "VPC" : {
+    "Type" : "AWS::EC2::VPC",
+    "Properties" : {
+      "CidrBlock" : "10.0.0.0/16",
+      "EnableDnsSupport" : "true",
+    	"EnableDnsHostnames" : "true",
+      "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ]
+    }
+  },
+
+  "Subnet1" : {
+    "Type" : "AWS::EC2::Subnet",
+    "Properties" : {
+      "VpcId" : { "Ref" : "VPC" },
+      "CidrBlock" : "10.0.1.0/24",
+      "AvailabilityZone" : "us-east-1a",
+      "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ]
+                    }
+              },
+
+
+  "Subnet2" : {
+    "Type" : "AWS::EC2::Subnet",
+    "Properties" : {
+      "VpcId" : { "Ref" : "VPC" },
+      "CidrBlock" : "10.0.2.0/24",
+      "AvailabilityZone" : "us-east-1b",
+      "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ]
+                                  }
+                            },
+
+  "InternetGateway" : {
+    "Type" : "AWS::EC2::InternetGateway",
+    "Properties" : {
+      "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ]
+    }
+  },
+
+  "AttachGateway" : {
+     "Type" : "AWS::EC2::VPCGatewayAttachment",
+     "Properties" : {
+       "VpcId" : { "Ref" : "VPC" },
+       "InternetGatewayId" : { "Ref" : "InternetGateway" }
+     }
+  },
+
+  "RouteTable" : {
+    "Type" : "AWS::EC2::RouteTable",
+    "Properties" : {
+      "VpcId" : { "Ref" : "VPC" },
+      "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ]
+
+    }
+  },
+
+  "Route" : {
+    "Type" : "AWS::EC2::Route",
+    "DependsOn" : "AttachGateway",
+    "Properties" : {
+      "RouteTableId" : { "Ref" : "RouteTable" },
+      "DestinationCidrBlock" : "0.0.0.0/0",
+      "GatewayId" : { "Ref" : "InternetGateway" }
+    }
+  },
+
+  "SubnetRouteTableAssociation1" : {
+    "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+    "Properties" : {
+      "SubnetId" : { "Ref" : "Subnet1" },
+      "RouteTableId" : { "Ref" : "RouteTable" }
+        }
+      },
+
+  "SubnetRouteTableAssociation2" :   {
+    "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+    "Properties" : {
+      "SubnetId" : { "Ref" : "Subnet2" },
+      "RouteTableId" : { "Ref" : "RouteTable" }
+                    }
+            },
+
+  "NetworkAcl" : {
+    "Type" : "AWS::EC2::NetworkAcl",
+    "Properties" : {
+      "VpcId" : { "Ref" : "VPC" },
+      "Tags" : [ {"Key" : "Name", "Value" :"Blast" }]
+                  }
+                },
+
+  "InboundHTTPNetworkAclEntry1" : {
+    "Type" : "AWS::EC2::NetworkAclEntry",
+    "Properties" : {
+      "NetworkAclId" : {"Ref" : "NetworkAcl"},
+      "RuleNumber" : "100",
+      "Protocol" : "6",
+      "RuleAction" : "allow",
+      "Egress" : "false",
+      "CidrBlock" : "0.0.0.0/0",
+      "PortRange" : {"From" : "80", "To" : "80"}
+                   }
+                 },
+
+  "InboundSSHNetworkAclEntry2" : {
+    "Type" : "AWS::EC2::NetworkAclEntry",
+    "Properties" : {
+      "NetworkAclId" : {"Ref" : "NetworkAcl"},
+      "RuleNumber" : "101",
+      "Protocol" : "6",
+      "RuleAction" : "allow",
+      "Egress" : "false",
+      "CidrBlock" : "0.0.0.0/0",
+      "PortRange" : {"From" : "22", "To" : "22"}
+                   }
+                 },
+
+  "InboundHighNetworkAclEntry3" : {
+   "Type" : "AWS::EC2::NetworkAclEntry",
+   "Properties" : {
+     "NetworkAclId" : {"Ref" : "NetworkAcl"},
+     "RuleNumber" : "102",
+     "Protocol" : "6",
+     "RuleAction" : "allow",
+     "Egress" : "false",
+     "CidrBlock" : "0.0.0.0/0",
+     "PortRange" : {"From" : "1024", "To" : "65535"}
+                                    }
+                                  },
+
+  "OutBound80DefaultEntry1" : {
+    "Type" : "AWS::EC2::NetworkAclEntry",
+    "Properties" : {
+      "NetworkAclId" : {"Ref" : "NetworkAcl"},
+      "RuleNumber" : "100",
+      "Protocol" : "6",
+      "RuleAction" : "allow",
+      "Egress" : "true",
+      "CidrBlock" : "0.0.0.0/0",
+      "PortRange" : {"From" : "80", "To" : "80"}
+                   }
+                 },
+
+  "OutBound443NetworkAclEntry2" : {
+    "Type" : "AWS::EC2::NetworkAclEntry",
+    "Properties" : {
+      "NetworkAclId" : {"Ref" : "NetworkAcl"},
+      "RuleNumber" : "101",
+      "Protocol" : "6",
+      "RuleAction" : "allow",
+      "Egress" : "true",
+      "CidrBlock" : "0.0.0.0/0",
+      "PortRange" : {"From" : "443", "To" : "443"}
+                   }
+                 },
+
+  "OutBoundhighNetworkAclEntry3" : {
+   "Type" : "AWS::EC2::NetworkAclEntry",
+   "Properties" : {
+     "NetworkAclId" : {"Ref" : "NetworkAcl"},
+     "RuleNumber" : "102",
+     "Protocol" : "6",
+     "RuleAction" : "allow",
+     "Egress" : "true",
+     "CidrBlock" : "0.0.0.0/0",
+     "PortRange" : {"From" : "1024", "To" : "65535"}
+                    }
+                  },
+
+  "SubnetNetworkAclAssociation1" : {
+    "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+    "Properties" : {
+      "SubnetId" : { "Ref" : "Subnet1" },
+      "NetworkAclId" : { "Ref" : "NetworkAcl" }
+      }
+    },
+
+  "SubnetNetworkAclAssociation2" : {
+    "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+    "Properties" : {
+      "SubnetId" : { "Ref" : "Subnet2" },
+      "NetworkAclId" : { "Ref" : "NetworkAcl" }
+      }
+    },
+
+  "IPAddress1" : {
+    "Type" : "AWS::EC2::EIP",
+    "DependsOn" : "AttachGateway",
+    "Properties" : {
+      "Domain" : "vpc",
+      "InstanceId" : { "Ref" : "FepEC2" }
+      }
+    },
+
+  "IPAddress2" : {
+    "Type" : "AWS::EC2::EIP",
+    "DependsOn" : "AttachGateway",
+    "Properties" : {
+      "Domain" : "vpc",
+      "InstanceId" : { "Ref" : "GSEC2" }
+      }
+    },
+
+
+  "BlastSecurityGroup" : {
+    "Type" : "AWS::EC2::SecurityGroup",
+    "Properties" : {
+      "GroupDescription" : "Allow ssh & http to client host",
+      "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ],
+      "VpcId" : { "Ref" : "VPC" },
+      "SecurityGroupIngress" :
+          [{"IpProtocol" : "tcp","FromPort" : 80,"ToPort" : 80,"CidrIp" : "0.0.0.0/0" },
+          {"IpProtocol" : "tcp","FromPort" : 22,"ToPort" : 22,"CidrIp" : "0.0.0.0/0" } ],
+      "SecurityGroupEgress" :
+          [{"IpProtocol" : "tcp","FromPort" : 80,"ToPort" : 80,"CidrIp" : "0.0.0.0/0"},
+           {"IpProtocol" : "tcp","FromPort" : 443,"ToPort" : 443,"CidrIp" : "0.0.0.0/0"} ]
+                       }
+                    },
+
+  "FepEC2" : {
+    "Type" : "AWS::EC2::Instance",
+    "Properties" :  {
+      "ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "AMI" ]},
+      "InstanceType" : { "Ref" : "InstanceType" },
+      "KeyName" : { "Ref" : "KeyName" },
+      "NetworkInterfaces" : [ {
+        "DeviceIndex": "0",
+        "GroupSet" : [{ "Ref" : "BlastSecurityGroup"  }],
+        "SubnetId" : { "Ref" : "Subnet1"}
+                            } ],
+      "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ]
+                      }
+                 },
+
+  "GSEC2" : {
+    "Type" : "AWS::EC2::Instance",
+    "Properties" :  {
+      "ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "AMI" ]},
+      "InstanceType" : { "Ref" : "InstanceType" },
+      "KeyName" : { "Ref" : "KeyName" },
+      "NetworkInterfaces" : [ {
+        "DeviceIndex": "0",
+        "GroupSet" : [{ "Ref" : "BlastSecurityGroup"  }],
+        "SubnetId" : { "Ref" : "Subnet2"}
+                             } ],
+    "Tags" : [  {"Key" : "Name", "Value" : "Blast" } ]
+                                     }
+                                }
+
+
+}
+}
+
