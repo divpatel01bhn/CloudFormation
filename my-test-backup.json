@@ -1,5 +1,6 @@
 {
 
+
 "AWSTemplateFormatVersion": "2010-09-09",
 "Description" : "Create VPC,Subnet,IGW,attachIGW,RT,add route,EC2 ",
 
